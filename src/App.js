@@ -16,6 +16,7 @@ import DutyDashboard from './pages/DutyDashboard';
 import AllReports from './pages/AllReports';
 import Settings from './pages/Settings';
 import { getTeacherWithAssignments, expireOldDuties } from './utils/teacherUtils';
+import { Menu } from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -113,6 +114,9 @@ function App() {
       <div className="main-content">
         <div className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '8px' }}>
+            <button onClick={() => setCollapsed(!collapsed)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center' }}>
+              <Menu size={24} color="var(--text-dark)" />
+            </button>
             <img src={require('./assets/logo.jpg')} alt="Jinja CMS" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
             <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
             <div className="topbar-title">

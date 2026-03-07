@@ -92,7 +92,10 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
           <div
             key={item.id}
             className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => {
+              setActiveTab(item.id);
+              if (window.innerWidth <= 768) setCollapsed(true);
+            }}
           >
             <item.icon size={20} className="nav-icon" />
             <span className="nav-text">{item.label}</span>

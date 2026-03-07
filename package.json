@@ -5,7 +5,7 @@
   "main": "electron.js",
   "author": "Jinja College",
   "scripts": {
-    "start": "electron .",
+    "start": "npx electron main.js",
     "react-start": "react-scripts start",
     "build": "react-scripts build",
     "build:mobile": "react-scripts build && npx cap sync android",
@@ -57,7 +57,7 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^28.0.0",
+    "electron": "^28.3.3",
     "electron-builder": "^24.9.1",
     "wait-on": "^7.2.0"
   },
