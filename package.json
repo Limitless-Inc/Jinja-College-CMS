@@ -1,0 +1,76 @@
+{
+  "name": "jinja-college-cms",
+  "version": "1.0.0",
+  "description": "Jinja College Class Monitoring System",
+  "main": "electron.js",
+  "author": "Jinja College",
+  "scripts": {
+    "start": "electron .",
+    "react-start": "react-scripts start",
+    "build": "react-scripts build",
+    "build:mobile": "react-scripts build && npx cap sync android",
+    "package": "npm run build && electron-builder build --win --publish never",
+    "package-dir": "npm run build && electron-builder build --win --dir"
+  },
+  "build": {
+    "appId": "com.jinjacollege.cms",
+    "productName": "Jinja College CMS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "electron.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "electron.js",
+        "to": "electron.js"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Jinja College CMS",
+      "installerIcon": "public/icon.png",
+      "uninstallerIcon": "public/icon.png"
+    }
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+node_modules
+build
+dist
+.DS_Store
+*.log
+.env
+android/app/build
+android/.gradle
+android/build
+installer_output
