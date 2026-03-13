@@ -15,7 +15,7 @@ function createWindow() {
       contextIsolation: true
     },
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'build', 'logo.jpg'),
+    icon: path.join(__dirname, 'build', 'icon.png'),
     title: 'Jinja College CMS'
   });
 

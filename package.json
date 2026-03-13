@@ -2,10 +2,11 @@
   "name": "jinja-college-cms",
   "version": "1.0.0",
   "description": "Jinja College Class Monitoring System",
-  "main": "electron.js",
+  "main": "main.js",
   "author": "Jinja College",
   "scripts": {
-    "start": "npx electron main.js",
+    "start": "react-scripts start",
+    "start:desktop": "node node_modules/electron/cli.js .",
     "react-start": "react-scripts start",
     "build": "react-scripts build",
     "build:mobile": "react-scripts build && npx cap sync android",
@@ -20,14 +21,8 @@
     },
     "files": [
       "build/**/*",
-      "electron.js",
+      "main.js",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "electron.js",
-        "to": "electron.js"
-      }
     ],
     "win": {
       "target": "nsis",
@@ -52,7 +47,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

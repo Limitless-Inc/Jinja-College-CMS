@@ -35,6 +35,31 @@ export default function Classes() {
     setLoading(false);
   };
 
+  const handleEdit = async (classItem) => {
+    setSelectedClass(classItem);
+    try {
+      // Load existing streams if class has streams
+      let existingStreams = [''];
+      if (classItem.has_streams) {
+        const { data } = await supabase
+          .from('streams')
+          .select('name')
+          .eq('class_id', classItem.id);
+        existingStreams = data?.map(s => s.name) || [''];
+      }
+      
+      setFormData({
+        name: classItem.name,
+        full_name: classItem.full_name || '',
+        has_streams: classItem.has_streams ? 'yes' : 'no',
+        streams: existingStreams
+      });
+    } catch (error) {
+      console.error('Error loading streams:', error);
+    }
+    setShowModal(true);
+  };
+
   const loadTeachers = async () => {
     const { data } = await supabase.from('teachers').select('*').eq('approved', true);
     setTeachers(data || []);
@@ -47,35 +72,75 @@ export default function Classes() {
     try {
       const classData = {
         name: formData.name,
-        full_name: formData.full_name,
-        has_streams: formData.has_streams === 'yes'
+        full_name: formData.full_name || null,
+        has_streams: formData.has_streams === 'yes',
+        capacity: 50
       };
 
-      const { data: newClass, error } = await supabase
-        .from('classes')
-        .insert(classData)
-        .select()
-        .single();
+      if (selectedClass) {
+        // Update existing class
+        await supabase
+          .from('classes')
+          .update(classData)
+          .eq('id', selectedClass.id);
+        
+        // Handle streams for updates
+        if (!classData.has_streams) {
+          // Delete all streams if no longer has streams
+          await supabase
+            .from('streams')
+            .delete()
+            .eq('class_id', selectedClass.id);
+        } else if (classData.has_streams) {
+          // Delete old streams and add new ones
+          await supabase
+            .from('streams')
+            .delete()
+            .eq('class_id', selectedClass.id);
+          
+          const newStreams = formData.streams
+            .filter(s => s.trim())
+            .map(stream => ({
+              class_id: selectedClass.id,
+              name: stream.trim()
+            }));
+          
+          if (newStreams.length > 0) {
+            await supabase.from('streams').insert(newStreams);
+          }
+        }
+        alert('✅ Class updated successfully!');
+      } else {
+        // Create new class
+        const { data: newClass, error } = await supabase
+          .from('classes')
+          .insert(classData)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (formData.has_streams === 'yes' && formData.streams.length > 0) {
-        const streamData = formData.streams
-          .filter(s => s.trim())
-          .map(stream => ({
-            class_id: newClass.id,
-            name: stream.trim()
-          }));
+        if (formData.has_streams === 'yes' && formData.streams.length > 0) {
+          const streamData = formData.streams
+            .filter(s => s.trim())
+            .map(stream => ({
+              class_id: newClass.id,
+              name: stream.trim()
+            }));
 
-        await supabase.from('streams').insert(streamData);
+          if (streamData.length > 0) {
+            await supabase.from('streams').insert(streamData);
+          }
+        }
+        alert('✅ Class created successfully!');
       }
-
-      alert('✅ Class created successfully!');
+      
       setShowModal(false);
+      setSelectedClass(null);
       loadClasses();
       setFormData({ name: '', full_name: '', has_streams: 'yes', streams: [''] });
     } catch (error) {
-      alert('Error creating class: ' + error.message);
+      alert('Error saving class: ' + error.message);
     }
     setLoading(false);
   };
@@ -89,6 +154,18 @@ export default function Classes() {
 
   const viewStreams = async (classItem) => {
     setSelectedClass(classItem);
+    // Fetch streams from database
+    try {
+      const { data } = await supabase
+        .from('streams')
+        .select('*')
+        .eq('class_id', classItem.id);
+      setClasses(prev => prev.map(c => 
+        c.id === classItem.id ? { ...c, streamsList: data || [] } : c
+      ));
+    } catch (error) {
+      console.error('Error loading streams:', error);
+    }
     setShowStreamModal(true);
   };
 
@@ -170,7 +247,7 @@ export default function Classes() {
                     </p>
                   )}
                   <p style={{ fontSize: '14px', color: 'var(--text-gray)' }}>
-                    {classItem.has_streams ? 'Has streams' : 'No streams'}
+                    {classItem.has_streams ? '✅ Has streams' : '⊘ No streams'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -180,7 +257,7 @@ export default function Classes() {
                       View Streams
                     </button>
                   )}
-                  <button className="btn btn-secondary" style={{ padding: '6px 12px' }}>
+                  <button className="btn btn-secondary" style={{ padding: '6px 12px' }} onClick={() => handleEdit(classItem)}>
                     <Edit size={16} />
                   </button>
                   <button className="btn btn-secondary" style={{ padding: '6px 12px' }} onClick={() => handleDelete(classItem.id)}>
@@ -197,8 +274,8 @@ export default function Classes() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Create New Class</h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <h3 className="modal-title">{selectedClass ? 'Edit Class' : 'Create New Class'}</h3>
+              <button onClick={() => { setShowModal(false); setSelectedClass(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -294,7 +371,7 @@ export default function Classes() {
 
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
                 <Check size={18} />
-                {loading ? 'Creating...' : 'Create Class'}
+                {loading ? 'Saving...' : selectedClass ? 'Update Class' : 'Create Class'}
               </button>
             </form>
           </div>

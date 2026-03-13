@@ -15,7 +15,17 @@ import ClassReports from './pages/ClassReports';
 import DutyDashboard from './pages/DutyDashboard';
 import AllReports from './pages/AllReports';
 import Settings from './pages/Settings';
+import { supabase } from './utils/supabase';
 import { getTeacherWithAssignments, expireOldDuties } from './utils/teacherUtils';
+import {
+  buildSecurityQuestionPayload,
+  checkSecurityQuestionSchemaAvailability,
+  createEmptySecurityQuestionState,
+  getSecurityQuestionSchemaMessage,
+  hasSecurityQuestionsConfigured,
+  isSecurityQuestionSchemaMissing,
+  validateSecurityQuestionState
+} from './utils/securityQuestions';
 import { Menu } from 'lucide-react';
 import './index.css';
 
@@ -23,15 +33,42 @@ function App() {
   const [user, setUser] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [securitySetupData, setSecuritySetupData] = useState(createEmptySecurityQuestionState());
+  const [securitySetupSaving, setSecuritySetupSaving] = useState(false);
+  const [securitySetupError, setSecuritySetupError] = useState('');
+  const [securityQuestionsEnabled, setSecurityQuestionsEnabled] = useState(false);
+
+  const refreshSecurityQuestionAvailability = async () => {
+    const isAvailable = await checkSecurityQuestionSchemaAvailability(supabase);
+    setSecurityQuestionsEnabled(isAvailable);
+    return isAvailable;
+  };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      refreshUserData(userData.id);
-    }
-    // Auto-expire duties every time app loads
+    const initializeApp = async () => {
+      await refreshSecurityQuestionAvailability();
+
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        refreshUserData(userData.id);
+      }
+    };
+
+    initializeApp();
     expireOldDuties();
+  }, []);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      refreshSecurityQuestionAvailability();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+    };
   }, []);
 
   const refreshUserData = async (userId) => {
@@ -54,8 +91,60 @@ function App() {
     setActiveTab('dashboard');
   };
 
+  const requiresSecuritySetup = securityQuestionsEnabled && user && !hasSecurityQuestionsConfigured(user);
+
+  useEffect(() => {
+    if (requiresSecuritySetup) {
+      setSecuritySetupData(createEmptySecurityQuestionState());
+      setSecuritySetupError('');
+    }
+  }, [requiresSecuritySetup, user?.id]);
+
+  const handleSecuritySetupSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!securityQuestionsEnabled) {
+      setSecuritySetupError(getSecurityQuestionSchemaMessage());
+      return;
+    }
+
+    const validationError = validateSecurityQuestionState(securitySetupData);
+
+    if (validationError) {
+      setSecuritySetupError(validationError);
+      return;
+    }
+
+    setSecuritySetupSaving(true);
+    setSecuritySetupError('');
+
+    const { error } = await supabase
+      .from('teachers')
+      .update(buildSecurityQuestionPayload(securitySetupData))
+      .eq('id', user.id);
+
+    setSecuritySetupSaving(false);
+
+    if (error) {
+      setSecuritySetupError(
+        isSecurityQuestionSchemaMissing(error)
+          ? getSecurityQuestionSchemaMessage()
+          : error.message || 'Failed to save your security questions.'
+      );
+      return;
+    }
+
+    await refreshUserData(user.id);
+  };
+
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <Login
+        onLogin={handleLogin}
+        securityQuestionsEnabled={securityQuestionsEnabled}
+        refreshSecurityQuestionAvailability={refreshSecurityQuestionAvailability}
+      />
+    );
   }
 
   const renderContent = () => {
@@ -86,16 +175,10 @@ function App() {
         return <DutyDashboard user={user} />;
       case 'manage-students':
         return <Students user={user} />;
-      case 'duty-management':
-        return (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-gray)' }}>
-            Duty Management feature coming soon...
-          </div>
-        );
       case 'reports':
         return <AllReports />;
       case 'settings':
-        return <Settings user={user} />;
+        return <Settings user={user} onUserRefresh={refreshUserData} />;
       default:
         return <Dashboard user={user} />;
     }
@@ -143,6 +226,97 @@ function App() {
           {renderContent()}
         </div>
       </div>
+
+      {requiresSecuritySetup && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.74)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', zIndex: 3000 }}>
+          <div style={{ width: '100%', maxWidth: '560px', background: '#ffffff', borderRadius: '18px', padding: '28px', boxShadow: '0 32px 80px rgba(15, 23, 42, 0.28)' }}>
+            <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: 'var(--text-dark)' }}>Set Recovery Questions</h2>
+            <p style={{ margin: '10px 0 20px', color: 'var(--text-gray)', lineHeight: '1.6' }}>
+              This account was created before recovery questions were added. Save two answers now before you continue using the system.
+            </p>
+
+            {securitySetupError && (
+              <div style={{ background: '#fee2e2', color: '#991b1b', padding: '12px 14px', borderRadius: '10px', marginBottom: '16px' }}>
+                {securitySetupError}
+              </div>
+            )}
+
+            <form onSubmit={handleSecuritySetupSubmit} style={{ display: 'grid', gap: '16px' }}>
+              <div>
+                <label className="form-label">Security Question 1</label>
+                <select
+                  className="form-input"
+                  value={securitySetupData.securityQuestion1}
+                  onChange={(e) => setSecuritySetupData({ ...securitySetupData, securityQuestion1: e.target.value })}
+                  required
+                >
+                  <option value="">Select a question</option>
+                  {[
+                    'What was the name of your first school?',
+                    'What is your mother\'s maiden name?',
+                    'What was the name of your childhood best friend?',
+                    'What town or village were you born in?',
+                    'What is the name of your favorite teacher?',
+                    'What was your first phone number?',
+                    'What is the first name of your oldest sibling?'
+                  ].map((question) => (
+                    <option key={question} value={question}>{question}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label">Answer 1</label>
+                <input
+                  className="form-input"
+                  value={securitySetupData.securityAnswer1}
+                  onChange={(e) => setSecuritySetupData({ ...securitySetupData, securityAnswer1: e.target.value })}
+                  placeholder="Enter your answer"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Security Question 2</label>
+                <select
+                  className="form-input"
+                  value={securitySetupData.securityQuestion2}
+                  onChange={(e) => setSecuritySetupData({ ...securitySetupData, securityQuestion2: e.target.value })}
+                  required
+                >
+                  <option value="">Select a different question</option>
+                  {[
+                    'What was the name of your first school?',
+                    'What is your mother\'s maiden name?',
+                    'What was the name of your childhood best friend?',
+                    'What town or village were you born in?',
+                    'What is the name of your favorite teacher?',
+                    'What was your first phone number?',
+                    'What is the first name of your oldest sibling?'
+                  ].map((question) => (
+                    <option key={question} value={question}>{question}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label">Answer 2</label>
+                <input
+                  className="form-input"
+                  value={securitySetupData.securityAnswer2}
+                  onChange={(e) => setSecuritySetupData({ ...securitySetupData, securityAnswer2: e.target.value })}
+                  placeholder="Enter your answer"
+                  required
+                />
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={securitySetupSaving} style={{ justifyContent: 'center' }}>
+                {securitySetupSaving ? 'Saving Questions...' : 'Save And Continue'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

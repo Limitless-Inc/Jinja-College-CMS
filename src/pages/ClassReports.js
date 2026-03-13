@@ -5,6 +5,7 @@ import { FileText, Send, AlertCircle, CheckCircle } from 'lucide-react';
 export default function ClassReports({ user }) {
   const [reports, setReports] = useState([]);
   const [students, setStudents] = useState([]);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -15,20 +16,27 @@ export default function ClassReports({ user }) {
   }, []);
 
   const fetchData = async () => {
-    const [reportsRes, studentsRes] = await Promise.all([
+    const [reportsRes, studentsRes, attendanceRes] = await Promise.all([
       supabase.from('lesson_reports').select('*').eq('class_name', user.class_assigned).order('report_date', { ascending: false }),
-      supabase.from('students').select('*').eq('class_name', user.class_assigned)
+      supabase.from('students').select('*'),
+      supabase.from('attendance').select('*').eq('class_name', user.class_assigned)
     ]);
+
     setReports(reportsRes.data || []);
-    setStudents(studentsRes.data || []);
+    setStudents((studentsRes.data || []).filter((student) => (student.class_name || student.class) === user.class_assigned));
+    setAttendanceRecords(attendanceRes.data || []);
     setLoading(false);
   };
 
   const calculateAttendance = (studentId) => {
-    const student = students.find(s => s.id === studentId);
-    if (!student) return 0;
-    const { data } = supabase.from('attendance').select('*').eq('student_id', studentId);
-    return 85; // Placeholder
+    const records = attendanceRecords.filter((record) => record.student_id === studentId);
+
+    if (!records.length) {
+      return 100;
+    }
+
+    const attendedLessons = records.filter((record) => record.status === 'present' || record.status === 'late').length;
+    return Math.round((attendedLessons / records.length) * 100);
   };
 
   const getRedStudents = () => {
@@ -95,7 +103,7 @@ export default function ClassReports({ user }) {
       </div>
 
       {message && (
-        <div style={{ padding: '12px', background: message.includes('success') ? '#d4edda' : '#f8d7da', color: message.includes('success') ? '#155724' : '#721c24', borderRadius: '8px', marginBottom: '20px' }}>
+        <div style={{ padding: '12px', background: message.toLowerCase().includes('success') ? '#d4edda' : '#f8d7da', color: message.toLowerCase().includes('success') ? '#155724' : '#721c24', borderRadius: '8px', marginBottom: '20px' }}>
           {message}
         </div>
       )}
@@ -135,7 +143,7 @@ export default function ClassReports({ user }) {
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: '#dc2626' }}>🔴 Students Needing Attention</h3>
           {redStudents.map(s => (
             <div key={s.id} style={{ padding: '8px 0', borderBottom: '1px solid #fecaca' }}>
-              <div style={{ fontWeight: '500' }}>{s.full_name}</div>
+              <div style={{ fontWeight: '500' }}>{s.name || s.full_name}</div>
               <div style={{ fontSize: '13px', color: '#991b1b' }}>Parent: {s.parent_phone}</div>
             </div>
           ))}

@@ -1,19 +1,46 @@
 const { app, BrowserWindow } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
+const url = require('url');
 
 let mainWindow;
 let reactProcess;
 
+function getStartUrl() {
+  return process.env.ELECTRON_START_URL || 'http://localhost:3000';
+}
+
+function isDevMode() {
+  return !app.isPackaged;
+}
+
 function startReact() {
+  if (!isDevMode() || reactProcess) {
+    return;
+  }
+
   reactProcess = spawn('npm', ['run', 'react-start'], {
     shell: true,
     env: { ...process.env, BROWSER: 'none' }
   });
 
   reactProcess.stdout.on('data', (data) => {
-    console.log(`React: ${data}`);
-    if (data.toString().includes('webpack compiled')) {
+    const output = data.toString();
+
+    console.log(`React: ${output}`);
+    if (
+      output.includes('webpack compiled') ||
+      output.includes('Something is already running on port 3000')
+    ) {
+      setTimeout(createWindow, 2000);
+    }
+  });
+
+  reactProcess.stderr.on('data', (data) => {
+    const output = data.toString();
+
+    console.error(`React error: ${output}`);
+    if (output.includes('Something is already running on port 3000')) {
       setTimeout(createWindow, 2000);
     }
   });
@@ -36,7 +63,17 @@ function createWindow() {
     title: 'Jinja College CMS'
   });
 
-  mainWindow.loadURL('http://localhost:3000');
+  if (isDevMode()) {
+    mainWindow.loadURL(getStartUrl());
+  } else {
+    mainWindow.loadURL(
+      url.format({
+        pathname: path.join(__dirname, 'build', 'index.html'),
+        protocol: 'file:',
+        slashes: true
+      })
+    );
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -44,7 +81,11 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  startReact();
+  if (isDevMode()) {
+    startReact();
+  } else {
+    createWindow();
+  }
 });
 
 app.on('window-all-closed', () => {

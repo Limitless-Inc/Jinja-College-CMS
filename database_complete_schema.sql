@@ -11,6 +11,11 @@ CREATE TABLE IF NOT EXISTS teachers (
   phone TEXT NOT NULL,
   subjects TEXT NOT NULL,
   password TEXT NOT NULL,
+  security_question_1 TEXT,
+  security_answer_1 TEXT,
+  security_question_2 TEXT,
+  security_answer_2 TEXT,
+  security_questions_completed_at TIMESTAMP WITH TIME ZONE,
   role TEXT DEFAULT 'teacher' CHECK (role IN ('admin', 'teacher')),
   class_assigned TEXT,
   approved BOOLEAN DEFAULT false,
@@ -49,7 +54,7 @@ CREATE TABLE IF NOT EXISTS classes (
 -- ============================================
 CREATE TABLE IF NOT EXISTS duty_assignments (
   id BIGSERIAL PRIMARY KEY,
-  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   is_duty_head BOOLEAN DEFAULT false,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
@@ -63,12 +68,12 @@ CREATE TABLE IF NOT EXISTS duty_assignments (
 -- ============================================
 CREATE TABLE IF NOT EXISTS attendance (
   id BIGSERIAL PRIMARY KEY,
-  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  student_id BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   student_name TEXT NOT NULL,
   class_name TEXT NOT NULL,
   attendance_date DATE NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('present', 'absent', 'late')),
-  marked_by INTEGER NOT NULL REFERENCES teachers(id),
+  marked_by BIGINT NOT NULL REFERENCES teachers(id),
   marked_by_name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(student_id, attendance_date)
@@ -79,9 +84,9 @@ CREATE TABLE IF NOT EXISTS attendance (
 -- ============================================
 CREATE TABLE IF NOT EXISTS lesson_reports (
   id BIGSERIAL PRIMARY KEY,
-  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   teacher_name TEXT NOT NULL,
-  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  student_id BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   student_name TEXT NOT NULL,
   class_name TEXT NOT NULL,
   subject TEXT NOT NULL,
@@ -96,7 +101,7 @@ CREATE TABLE IF NOT EXISTS lesson_reports (
 -- ============================================
 CREATE TABLE IF NOT EXISTS stream_reports (
   id BIGSERIAL PRIMARY KEY,
-  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   teacher_name TEXT NOT NULL,
   class_name TEXT NOT NULL,
   summary TEXT NOT NULL,
@@ -112,7 +117,7 @@ CREATE TABLE IF NOT EXISTS stream_reports (
 -- ============================================
 CREATE TABLE IF NOT EXISTS consolidated_reports (
   id BIGSERIAL PRIMARY KEY,
-  duty_head_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  duty_head_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   duty_head_name TEXT NOT NULL,
   week_start DATE NOT NULL,
   total_stream_reports INTEGER DEFAULT 0,
@@ -127,9 +132,9 @@ CREATE TABLE IF NOT EXISTS consolidated_reports (
 -- ============================================
 CREATE TABLE IF NOT EXISTS sms_logs (
   id BIGSERIAL PRIMARY KEY,
-  teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  teacher_id BIGINT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   teacher_name TEXT NOT NULL,
-  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  student_id BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   student_name TEXT NOT NULL,
   parent_phone TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -146,7 +151,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
   setting_key TEXT NOT NULL,
   setting_value TEXT,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_by INTEGER REFERENCES teachers(id),
+  updated_by TEXT,
   UNIQUE(category, setting_key)
 );
 
