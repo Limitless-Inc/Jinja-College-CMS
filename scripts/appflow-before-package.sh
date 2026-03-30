@@ -26,3 +26,16 @@ else
 fi
 
 echo "Appflow before-package finished"
+
+# Optionally assemble a signed Release APK in CI if requested via env var
+if [ "${APPFLOW_FORCE_RELEASE:-0}" = "1" ]; then
+  echo "APPFLOW_FORCE_RELEASE=1 -> running Gradle assembleRelease to produce signed release APK"
+  cd android
+  if [ -f ./gradlew ]; then
+    ./gradlew clean assembleRelease --no-daemon
+  else
+    gradle clean assembleRelease --no-daemon
+  fi
+  cd - >/dev/null || true
+  echo "assembleRelease finished"
+fi
