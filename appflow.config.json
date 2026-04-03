@@ -1,4 +1,5 @@
 {
+  "apps": [],
   "build": {
     "web": {
       "pre_build": "bash ./scripts/appflow-prebuild.sh"
@@ -6,5 +7,7 @@
     "native": {
       "before_package": "bash ./scripts/appflow-before-package.sh"
     }
-  }
+  },
+  "hooks": [],
+  "env": {}
 }
